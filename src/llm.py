@@ -24,5 +24,4 @@ if __name__ == '__main__':
         "messages": [{'role': 'user', 'content': 'какие автотеты посоветуешь описать по сократителю ссылок?'}]
     })
 
-    print(result)
     print(result['messages'][-1].content)

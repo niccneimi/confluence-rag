@@ -7,3 +7,4 @@ data/raw/
 bge-m3-model/
 qdrant_vector_store/
 .opencode
+qdrant_storage/

@@ -7,6 +7,7 @@ import uuid
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import HTMLSemanticPreservingSplitter
 from typing import List
+from src.config import QDRANT_HOST, QDRANT_PORT
 
 class ConfluenceChunkEmbedder:
     def __init__(self, embedding_model_path = './bge-m3-model'):
@@ -48,7 +49,7 @@ class ConfluenceQdrantClient:
                 pass
             self.collection_name = collection_name
 
-        self.original_qdrant_client = QdrantClient(path=vector_store_name)
+        self.original_qdrant_client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
         
         if reload_vectore_store:
             self.original_qdrant_client.create_collection(

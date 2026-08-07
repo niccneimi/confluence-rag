@@ -1,0 +1,8 @@
+.env
+__pycache__/
+.venv
+*tar.gz
+logs/
+data/raw/
+bge-m3-model/
+qdrant_vector_store/

@@ -1,6 +1,5 @@
 import json
 import os
-import shutil
 from qdrant_client import QdrantClient
 from qdrant_client.models import VectorParams, Distance, PointStruct, SparseVectorParams
 import uuid
@@ -8,16 +7,19 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import HTMLSemanticPreservingSplitter
 from typing import List
 from src.config import QDRANT_HOST, QDRANT_PORT
+import pickle
 
 class ConfluenceChunkEmbedder:
     def __init__(self, embedding_model_path = './bge-m3-model'):
         self.embedding_model = HuggingFaceEmbeddings(
-            model_name = embedding_model_path
+            model_name = embedding_model_path,
+            model_kwargs={'device': 'cpu'},
+            encode_kwargs={"normalize_embeddings": True}
         )
 
     def embed_chunks(self, chunks: List):
-        return [self.embedding_model.embed_query(chunk.page_content) for chunk in chunks]
-
+        texts = [chunk.page_content for chunk in chunks]
+        return self.embedding_model.embed_documents(texts)
 
 class ConfluenceChunker:
     def __init__(self):
@@ -41,17 +43,14 @@ class ConfluenceChunker:
         return no_duplicate_chunks
 
 class ConfluenceQdrantClient:
-    def __init__(self, vector_store_name='./qdrant_vector_store', collection_name='confluence_pages', reload_vectore_store=False):
-        if reload_vectore_store:
-            try:
-                shutil.rmtree(vector_store_name)
-            except:
-                pass
-            self.collection_name = collection_name
+    def __init__(self, collection_name='confluence_pages', reload_vectore_store=False):
+        self.collection_name = collection_name
 
         self.original_qdrant_client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
         
         if reload_vectore_store:
+            if self.original_qdrant_client.collection_exists(collection_name=self.collection_name):
+                self.original_qdrant_client.delete_collection(collection_name=self.collection_name)
             self.original_qdrant_client.create_collection(
                 collection_name = self.collection_name,
                 vectors_config=VectorParams(size=1024, distance=Distance.COSINE)
@@ -88,7 +87,37 @@ class ConfluenceQdrantClient:
             if hasattr(self, 'original_qdrant_client') and self.original_qdrant_client is not None:
                 self.original_qdrant_client.close()
         except:
-            pass
+            pass    
+
+def run_ingestion(load_from_pkl=False):
+    total_points = 0
+
+    if load_from_pkl:
+        with open('data/processed/embeddings_data.pkl', 'rb') as f:
+            all_data = pickle.load(f)
+        for filename, data in all_data.items():
+            chunks = data['chunks']
+            embeddings = data['embeddings']
+
+            points = qdrant_client.add_embeddings(chunks=chunks, embeddings=embeddings, confluence_json_path=filename)
+            total_points += len(points)
+
+    else:      
+        for confluence_json_path in os.listdir('data/raw/QA'):
+            if confluence_json_path.endswith('.json'):
+
+                with open (f'data/raw/QA/{confluence_json_path}', 'r', encoding='utf-8') as file:
+                    data = json.load(file)
+                    html_content = data['body']['view']['value']
+
+                chunks = chunker.basic_chunk(html_content)
+                embeddings = embedder.embed_chunks(chunks)
+
+                points = qdrant_client.add_embeddings(chunks=chunks, embeddings=embeddings, confluence_json_path=confluence_json_path)
+                total_points += len(points)
+
+    print(f"✅ Добавлено {total_points} документов")
+    
 
 embedder = ConfluenceChunkEmbedder()
 qdrant_client = ConfluenceQdrantClient()
@@ -96,19 +125,6 @@ chunker = ConfluenceChunker()
 
 if __name__ == "__main__":
     qdrant_client = ConfluenceQdrantClient(reload_vectore_store=True)
-    total_poinst = 0
 
-    for confluence_json_path in os.listdir('data/raw'):
-        if confluence_json_path.endswith('.json'):
-
-            with open (f'data/raw/{confluence_json_path}', 'r', encoding='utf-8') as file:
-                data = json.load(file)
-                html_content = data['body']['view']['value']
-
-            chunks = chunker.basic_chunk(html_content)
-            embeddings = embedder.embed_chunks(chunks)
-
-            points = qdrant_client.add_embeddings(chunks=chunks, embeddings=embeddings, confluence_json_path=confluence_json_path)
-            total_poinst += len(points)
-
-    print(f"✅ Добавлено {total_poinst} документов")
+    run_ingestion(load_from_pkl=True)
+    

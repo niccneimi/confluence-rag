@@ -3,8 +3,9 @@ __pycache__/
 .venv
 *tar.gz
 logs/
-data/raw/
+data/
 bge-m3-model/
 qdrant_vector_store/
 .opencode
 qdrant_storage/
+qdrant_snapshots/

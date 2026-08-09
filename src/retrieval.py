@@ -21,7 +21,7 @@ class QdrantSearchTool(BaseTool):
             **kwargs
         )
     
-    def _run(self, query: str, top_k: int = 3) -> str:
+    def _run(self, query: str, top_k: int = 5) -> str:
         try:
             query_vector = self.embedder.embed_query(query)
             
@@ -50,7 +50,7 @@ class QdrantSearchTool(BaseTool):
         except Exception as e:
             return f"Произошла ошибка при поиске: {str(e)}"
     
-    async def _arun(self, query: str, top_k: int = 3) -> str:
+    async def _arun(self, query: str, top_k: int = 5) -> str:
         return self._run(query, top_k)
 
 qdrant_tool = QdrantSearchTool(

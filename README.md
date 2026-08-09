@@ -4,6 +4,8 @@
 
 ## Структура
 
+- `notebooks/` — ipynb файлы
+  - `gpu_ingestion.ipynb` — эмбеддинги на gpu
 - `src/` — исходный код
   - `config.py` — конфигурация (API ключи, Confluence)
   - `export.py` — экспорт страниц из Confluence
@@ -17,9 +19,21 @@
 
 ## Использование
 
-1. Экспорт страниц: `python -m src.export`
-2. Индексация: `python -m src.ingestion`
-3. Вопросы: `python -m src.llm`
+1. Создайте файл .env:
+```bash
+LLMOPS_API_KEY=
+LLMOPS_BASE_URL=
+ATLASSIAN_URL=
+ATLASSIAN_USERNAME=
+ATLASSIAN_PAT=
+QDRANT_HOST=
+QDRANT_PORT=
+```
+2. Запустите qdrant: `docker compose up -d --build`
+
+3. Экспорт страниц: `python -m src.export`
+4. Индексация: `python -m src.ingestion`
+5. Вопросы: `python -m src.llm`
 
 ## Технологии
 - Qdrant (векторная БД)

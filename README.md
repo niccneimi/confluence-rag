@@ -28,6 +28,7 @@ ATLASSIAN_USERNAME=
 ATLASSIAN_PAT=
 QDRANT_HOST=
 QDRANT_PORT=
+QDRANT_KEY=
 ```
 2. Запустите qdrant: `docker compose up -d --build`
 

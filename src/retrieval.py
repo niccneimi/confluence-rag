@@ -21,7 +21,7 @@ class QdrantSearchTool(BaseTool):
             **kwargs
         )
     
-    def _run(self, query: str, top_k: int = 5) -> str:
+    def _run(self, query: str, top_k: int = 100) -> str:
         try:
             query_vector = self.embedder.embed_query(query)
             
@@ -39,9 +39,11 @@ class QdrantSearchTool(BaseTool):
             for i, result in enumerate(search_results, 1):
                 content = result.payload.get('content', '')
                 header = result.payload.get('header 2', 'Без заголовка')
+                page_link = result.payload.get('page_link', 'Нет ссылки')
                 formatted_results.append(
                     f"Результат {i} (релевантность: {result.score:.2f}):\n"
                     f"Заголовок: {header}\n"
+                    f"Ссылка: {page_link}\n" 
                     f"Содержание: {content}"
                 )
             
@@ -50,7 +52,7 @@ class QdrantSearchTool(BaseTool):
         except Exception as e:
             return f"Произошла ошибка при поиске: {str(e)}"
     
-    async def _arun(self, query: str, top_k: int = 5) -> str:
+    async def _arun(self, query: str, top_k: int = 100) -> str:
         return self._run(query, top_k)
 
 qdrant_tool = QdrantSearchTool(

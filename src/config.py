@@ -12,3 +12,4 @@ ATLASSIAN_PAT = os.getenv('ATLASSIAN_PAT')
 
 QDRANT_HOST = os.getenv('QDRANT_HOST')
 QDRANT_PORT = os.getenv('QDRANT_PORT')
+QDRANT_KEY = os.getenv("QDRANT_KEY")

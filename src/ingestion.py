@@ -6,7 +6,7 @@ import uuid
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import HTMLSemanticPreservingSplitter
 from typing import List
-from src.config import QDRANT_HOST, QDRANT_PORT
+from src.config import QDRANT_HOST, QDRANT_PORT, QDRANT_KEY, ATLASSIAN_URL
 import pickle
 
 class ConfluenceChunkEmbedder:
@@ -46,7 +46,7 @@ class ConfluenceQdrantClient:
     def __init__(self, collection_name='confluence_pages', reload_vectore_store=False):
         self.collection_name = collection_name
 
-        self.original_qdrant_client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
+        self.original_qdrant_client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT, api_key=QDRANT_KEY)
         
         if reload_vectore_store:
             if self.original_qdrant_client.collection_exists(collection_name=self.collection_name):
@@ -56,7 +56,7 @@ class ConfluenceQdrantClient:
                 vectors_config=VectorParams(size=1024, distance=Distance.COSINE)
             )
 
-    def add_embeddings(self, embeddings, chunks, confluence_json_path):
+    def add_embeddings(self, embeddings, chunks, confluence_json_path, page_metadata):
         points = []
         
         for i, chunk in enumerate(chunks):
@@ -64,7 +64,9 @@ class ConfluenceQdrantClient:
             payload = chunk.metadata
             payload['content'] = chunk.page_content
             payload['file_name'] = confluence_json_path
-            
+            payload['page_link'] = f"{ATLASSIAN_URL}{page_metadata['page_link']}"
+            payload['page_id'] = page_metadata['page_id']
+             
             points.append(
                 PointStruct(
                     id=chunk_id,
@@ -72,13 +74,13 @@ class ConfluenceQdrantClient:
                     payload=payload
                 )
             )
-        
+
         self.original_qdrant_client.upsert(
             collection_name=self.collection_name,
-            wait=True,
+            wait=False,
             points=points
         )
-        
+
         print(f"Добавлено {len(points)} чанков в коллекцию '{self.collection_name}' из файла {confluence_json_path}")
         return points
 
@@ -93,13 +95,16 @@ def run_ingestion(load_from_pkl=False):
     total_points = 0
 
     if load_from_pkl:
-        with open('data/processed/embeddings_data.pkl', 'rb') as f:
+        with open('data/processed/embeddings_data_full.pkl', 'rb') as f:
             all_data = pickle.load(f)
         for filename, data in all_data.items():
             chunks = data['chunks']
+            if not chunks:
+                continue
             embeddings = data['embeddings']
+            page_metadata = data['page_metadata']
 
-            points = qdrant_client.add_embeddings(chunks=chunks, embeddings=embeddings, confluence_json_path=filename)
+            points = qdrant_client.add_embeddings(chunks=chunks, embeddings=embeddings, confluence_json_path=filename,page_metadata=page_metadata)
             total_points += len(points)
 
     else:      
@@ -111,9 +116,14 @@ def run_ingestion(load_from_pkl=False):
                     html_content = data['body']['view']['value']
 
                 chunks = chunker.basic_chunk(html_content)
+                if not chunks:
+                    continue
                 embeddings = embedder.embed_chunks(chunks)
+                page_metadata = {}
+                page_metadata['page_link'] = data['_links']['webui']
+                page_metadata['page_id'] = data['id']
 
-                points = qdrant_client.add_embeddings(chunks=chunks, embeddings=embeddings, confluence_json_path=confluence_json_path)
+                points = qdrant_client.add_embeddings(chunks=chunks, embeddings=embeddings, confluence_json_path=confluence_json_path, page_metadata=page_metadata)
                 total_points += len(points)
 
     print(f"✅ Добавлено {total_points} документов")

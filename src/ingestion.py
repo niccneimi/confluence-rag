@@ -43,11 +43,14 @@ class ConfluenceChunker:
         return no_duplicate_chunks
 
 class ConfluenceQdrantClient:
-    def __init__(self, collection_name='confluence_pages', reload_vectore_store=False):
+    def __init__(self, collection_name='confluence_pages', reload_vectore_store=False, local_storage=False):
         self.collection_name = collection_name
 
-        self.original_qdrant_client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT, api_key=QDRANT_KEY)
-        
+        if local_storage:
+            self.original_qdrant_client = QdrantClient(path='./qdrant_vector_store')
+        else:
+            self.original_qdrant_client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT, api_key=QDRANT_KEY)
+
         if reload_vectore_store:
             if self.original_qdrant_client.collection_exists(collection_name=self.collection_name):
                 self.original_qdrant_client.delete_collection(collection_name=self.collection_name)
@@ -134,7 +137,7 @@ qdrant_client = ConfluenceQdrantClient()
 chunker = ConfluenceChunker()
 
 if __name__ == "__main__":
-    qdrant_client = ConfluenceQdrantClient(reload_vectore_store=True)
+    qdrant_client = ConfluenceQdrantClient(reload_vectore_store=True, local_storage=True)
 
     run_ingestion(load_from_pkl=True)
     
